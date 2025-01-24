@@ -7,13 +7,14 @@ local RS = game:GetService("RunService")
 local player = Players.LocalPlayer
 local char = player.Character or player.CharacterAdded:Wait()
 local camera = workspace.CurrentCamera
+local humanoidRootPart = char:WaitForChild("HumanoidRootPart")
 
 -- Configurações iniciais
 local flying = false
 local speed = 50
 local maxSpeed = 500
 local bodyVelocity
-local marker
+local bodyGyro
 
 -- Criar a interface do usuário (UI)
 local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
@@ -26,6 +27,8 @@ mainFrame.Position = UDim2.new(0.35, 0, 0.25, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BorderSizePixel = 0
 mainFrame.Visible = true
+mainFrame.Active = true
+mainFrame.Draggable = true -- Permite mover a UI
 
 -- Título
 local titleLabel = Instance.new("TextLabel", mainFrame)
@@ -99,16 +102,17 @@ end)
 function toggleFlight()
 	if flying then
 		flying = false
-		if bodyVelocity then
-			bodyVelocity:Destroy()
-			bodyVelocity = nil
-		end
+		if bodyVelocity then bodyVelocity:Destroy() end
+		if bodyGyro then bodyGyro:Destroy() end
 	else
 		flying = true
-		if not bodyVelocity then
-			bodyVelocity = Instance.new("BodyVelocity", char.PrimaryPart)
-			bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-		end
+		bodyVelocity = Instance.new("BodyVelocity", humanoidRootPart)
+		bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+		bodyVelocity.Velocity = Vector3.zero
+
+		bodyGyro = Instance.new("BodyGyro", humanoidRootPart)
+		bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+		bodyGyro.CFrame = camera.CFrame
 	end
 end
 
@@ -121,8 +125,7 @@ function toggleInvisibility()
 end
 
 function markPosition(position)
-	if marker then marker:Destroy() end
-	marker = Instance.new("Part", workspace)
+	local marker = Instance.new("Part", workspace)
 	marker.Size = Vector3.new(1, 1, 1)
 	marker.Position = position
 	marker.Anchored = true
@@ -131,28 +134,38 @@ function markPosition(position)
 	marker.Transparency = 0.5
 end
 
--- Sistema de voo com teclas
+-- Sistema de voo
+RS.Heartbeat:Connect(function()
+	if flying and bodyVelocity and bodyGyro then
+		bodyVelocity.Velocity = Vector3.zero
+		bodyGyro.CFrame = camera.CFrame
+
+		if UIS:IsKeyDown(Enum.KeyCode.W) then
+			bodyVelocity.Velocity = camera.CFrame.LookVector * speed
+		end
+		if UIS:IsKeyDown(Enum.KeyCode.S) then
+			bodyVelocity.Velocity = camera.CFrame.LookVector * -speed
+		end
+		if UIS:IsKeyDown(Enum.KeyCode.A) then
+			bodyVelocity.Velocity = camera.CFrame.RightVector * -speed
+		end
+		if UIS:IsKeyDown(Enum.KeyCode.D) then
+			bodyVelocity.Velocity = camera.CFrame.RightVector * speed
+		end
+		if UIS:IsKeyDown(Enum.KeyCode.Space) then
+			bodyVelocity.Velocity = bodyVelocity.Velocity + Vector3.new(0, speed, 0)
+		end
+		if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then
+			bodyVelocity.Velocity = bodyVelocity.Velocity - Vector3.new(0, speed, 0)
+		end
+	end
+end)
+
 UIS.InputBegan:Connect(function(input)
 	if input.KeyCode == Enum.KeyCode.Q then
 		toggleFlight()
 	end
 	if input.KeyCode == Enum.KeyCode.T then
 		toggleInvisibility()
-	end
-end)
-
-RS.Heartbeat:Connect(function()
-	if flying and bodyVelocity then
-		bodyVelocity.Velocity = Vector3.zero
-
-		if UIS:IsKeyDown(Enum.KeyCode.W) then
-			bodyVelocity.Velocity = camera.CFrame.LookVector * speed
-		elseif UIS:IsKeyDown(Enum.KeyCode.S) then
-			bodyVelocity.Velocity = camera.CFrame.LookVector * -speed
-		elseif UIS:IsKeyDown(Enum.KeyCode.A) then
-			bodyVelocity.Velocity = camera.CFrame.RightVector * -speed
-		elseif UIS:IsKeyDown(Enum.KeyCode.D) then
-			bodyVelocity.Velocity = camera.CFrame.RightVector * speed
-		end
 	end
 end)
