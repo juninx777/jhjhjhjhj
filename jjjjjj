@@ -1,0 +1,158 @@
+-- Serviços do Roblox
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RS = game:GetService("RunService")
+
+-- Referências do jogador
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+local camera = workspace.CurrentCamera
+
+-- Configurações iniciais
+local flying = false
+local speed = 50
+local maxSpeed = 500
+local bodyVelocity
+local marker
+
+-- Criar a interface do usuário (UI)
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+screenGui.Name = "CustomMenu"
+
+-- Janela principal
+local mainFrame = Instance.new("Frame", screenGui)
+mainFrame.Size = UDim2.new(0.3, 0, 0.5, 0)
+mainFrame.Position = UDim2.new(0.35, 0, 0.25, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = true
+
+-- Título
+local titleLabel = Instance.new("TextLabel", mainFrame)
+titleLabel.Size = UDim2.new(1, 0, 0.15, 0)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+titleLabel.Text = "HawkMenu - Custom"
+titleLabel.TextColor3 = Color3.new(1, 1, 1)
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextSize = 18
+
+-- Botão de ativar/desativar voo
+local flyButton = Instance.new("TextButton", mainFrame)
+flyButton.Size = UDim2.new(0.9, 0, 0.15, 0)
+flyButton.Position = UDim2.new(0.05, 0, 0.2, 0)
+flyButton.Text = "Ativar/Desativar Voar (Q)"
+flyButton.BackgroundColor3 = Color3.fromRGB(20, 100, 200)
+flyButton.TextColor3 = Color3.new(1, 1, 1)
+flyButton.Font = Enum.Font.SourceSansBold
+flyButton.TextSize = 14
+flyButton.MouseButton1Click:Connect(function()
+	toggleFlight()
+end)
+
+-- Slider de velocidade (campo de texto)
+local speedSlider = Instance.new("TextBox", mainFrame)
+speedSlider.Size = UDim2.new(0.9, 0, 0.15, 0)
+speedSlider.Position = UDim2.new(0.05, 0, 0.4, 0)
+speedSlider.Text = "Velocidade: " .. speed
+speedSlider.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+speedSlider.TextColor3 = Color3.new(1, 1, 1)
+speedSlider.Font = Enum.Font.SourceSans
+speedSlider.TextSize = 14
+speedSlider.FocusLost:Connect(function()
+	local newSpeed = tonumber(speedSlider.Text:match("%d+"))
+	if newSpeed and newSpeed >= 1 and newSpeed <= maxSpeed then
+		speed = newSpeed
+	else
+		speedSlider.Text = "Velocidade: " .. speed
+	end
+end)
+
+-- Botão de invisibilidade
+local invisButton = Instance.new("TextButton", mainFrame)
+invisButton.Size = UDim2.new(0.9, 0, 0.15, 0)
+invisButton.Position = UDim2.new(0.05, 0, 0.6, 0)
+invisButton.Text = "Invisibilidade (T)"
+invisButton.BackgroundColor3 = Color3.fromRGB(20, 200, 100)
+invisButton.TextColor3 = Color3.new(1, 1, 1)
+invisButton.Font = Enum.Font.SourceSansBold
+invisButton.TextSize = 14
+invisButton.MouseButton1Click:Connect(function()
+	toggleInvisibility()
+end)
+
+-- Botão de teleporte
+local tpButton = Instance.new("TextButton", mainFrame)
+tpButton.Size = UDim2.new(0.9, 0, 0.15, 0)
+tpButton.Position = UDim2.new(0.05, 0, 0.8, 0)
+tpButton.Text = "Marcar posição para Teleporte"
+tpButton.BackgroundColor3 = Color3.fromRGB(200, 100, 20)
+tpButton.TextColor3 = Color3.new(1, 1, 1)
+tpButton.Font = Enum.Font.SourceSansBold
+tpButton.TextSize = 14
+tpButton.MouseButton1Click:Connect(function()
+	local mouse = player:GetMouse()
+	markPosition(mouse.Hit.p)
+end)
+
+-- Funções principais
+function toggleFlight()
+	if flying then
+		flying = false
+		if bodyVelocity then
+			bodyVelocity:Destroy()
+			bodyVelocity = nil
+		end
+	else
+		flying = true
+		if not bodyVelocity then
+			bodyVelocity = Instance.new("BodyVelocity", char.PrimaryPart)
+			bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+		end
+	end
+end
+
+function toggleInvisibility()
+	for _, v in ipairs(char:GetDescendants()) do
+		if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
+			v.Transparency = v.Transparency == 1 and 0 or 1
+		end
+	end
+end
+
+function markPosition(position)
+	if marker then marker:Destroy() end
+	marker = Instance.new("Part", workspace)
+	marker.Size = Vector3.new(1, 1, 1)
+	marker.Position = position
+	marker.Anchored = true
+	marker.Shape = Enum.PartType.Ball
+	marker.Color = Color3.new(1, 0, 0)
+	marker.Transparency = 0.5
+end
+
+-- Sistema de voo com teclas
+UIS.InputBegan:Connect(function(input)
+	if input.KeyCode == Enum.KeyCode.Q then
+		toggleFlight()
+	end
+	if input.KeyCode == Enum.KeyCode.T then
+		toggleInvisibility()
+	end
+end)
+
+RS.Heartbeat:Connect(function()
+	if flying and bodyVelocity then
+		bodyVelocity.Velocity = Vector3.zero
+
+		if UIS:IsKeyDown(Enum.KeyCode.W) then
+			bodyVelocity.Velocity = camera.CFrame.LookVector * speed
+		elseif UIS:IsKeyDown(Enum.KeyCode.S) then
+			bodyVelocity.Velocity = camera.CFrame.LookVector * -speed
+		elseif UIS:IsKeyDown(Enum.KeyCode.A) then
+			bodyVelocity.Velocity = camera.CFrame.RightVector * -speed
+		elseif UIS:IsKeyDown(Enum.KeyCode.D) then
+			bodyVelocity.Velocity = camera.CFrame.RightVector * speed
+		end
+	end
+end)
